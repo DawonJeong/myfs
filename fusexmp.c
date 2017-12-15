@@ -110,15 +110,22 @@ static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 		       off_t offset, struct fuse_file_info *fi)
 {
   char fullpath[PATH_MAX];
-
+	
 	DIR *dp;
 	struct dirent *de;
 
 	(void) offset;
 	(void) fi;
 
-  sprintf(fullpath, "%s%s",
-      rand() % 2 == 0 ? global_context.driveA : global_context.driveB, path);
+	unsigned char isFile = 0x8;
+
+	if(path == global_context.driveA)
+		sprintf(fullpath, "%s%s", global_context.driveA,path);
+	if(path== global_context.driveB)
+		sprintf(fullpath, "%s%s", global_context.driveB, path);
+
+//  sprintf(fullpath, "%s%s",
+  //    rand() % 2 == 0 ? global_context.driveA : global_context.driveB, path);
 
   fprintf(stdout, "readdir: %s\n", fullpath);
 
@@ -126,11 +133,14 @@ static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 	if (dp == NULL)
 		return -errno;
 
-	while ((de = readdir(dp)) != NULL) {
+	while ((de = readdir(dp)) != NULL) { //there is still something to read
 		struct stat st;
 		memset(&st, 0, sizeof(st));
+	//	if(S_ISREG(st.st_mode));
+		if(S_ISDIR(st.st_mode)){
 		st.st_ino = de->d_ino;
 		st.st_mode = de->d_type << 12;
+		}
 
     fprintf(stdout, "directory: %s\n", de->d_name);
 
@@ -391,8 +401,14 @@ static int xmp_read(const char *path, char *buf, size_t size, off_t offset,
   int fd;
   int res;
 
-  sprintf(fullpath, "%s%s",
-      rand() % 2 == 0 ? global_context.driveA : global_context.driveB, path);
+
+ if(fullpath == global_context.driveA)
+ 	sprintf(fullpath, "%s%s", global_context.driveA,path);
+ if(fullpath == global_context.driveB)
+ 	sprintf(fullpath,"%s%s", global_context.driveB,path);
+ 
+ // sprintf(fullpath, "%s%s",
+ //     rand() % 2 == 0 ? global_context.driveA : global_context.driveB, path);
   fprintf(stdout, "read: %s\n", fullpath);
 
   (void) fi;
@@ -420,15 +436,24 @@ static int xmp_write(const char *path, const char *buf, size_t size,
   sprintf(fullpaths[0], "%s%s", global_context.driveA, path);
   sprintf(fullpaths[1], "%s%s", global_context.driveB, path);
 
+/// int len1 = (int)(size);
+//	len1 = len1/2;
+// len1 = (size_t)len1;
+  char* str = (char*)malloc(sizeof(char));
+  str = strncpy(str,buf,(size/2));
+//	size=size/2;  -----> only difference
+ 	
+//	size_t size2 = {len1};
   for (int i = 0; i < 2; ++i) {
     const char* fullpath = fullpaths[i];
+	
     fprintf(stdout, "write: %s\n", fullpath);
 
     fd = open(fullpath, O_WRONLY);
     if (fd == -1)
       return -errno;
-
-    res = pwrite(fd, buf, size, offset);
+	
+    res = pwrite(fd, str, size, offset);
     if (res == -1)
       res = -errno;
 
